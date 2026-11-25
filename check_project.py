@@ -1,6 +1,9 @@
-"""Run this project's full unittest suite from the repository root."""
+"""Run this project's full unittest suite and the recorded cutover check."""
 import sys
+from tempfile import TemporaryDirectory
 import unittest
+
+from station import verify_cutover
 
 
 def main():
@@ -17,7 +20,16 @@ def main():
     ):
         for test in failed_cases:
             print(f'{status} {test.id()}')
-    successful = result.testsRun > 0 and result.wasSuccessful()
+
+    with TemporaryDirectory(prefix='cutover-verify-') as directory:
+        problems = verify_cutover(directory)
+    for problem in problems:
+        print(f'CUTOVER {problem}')
+    print(f'CUTOVER SUMMARY problems={len(problems)} result={"PASS" if not problems else "FAIL"}')
+
+    successful = (
+        result.testsRun > 0 and result.wasSuccessful() and not problems
+    )
     print(f'TEST SUMMARY total={result.testsRun} failures={len(result.failures)} '
           f'errors={len(result.errors)} skipped={len(result.skipped)} '
           f'expected_failures={len(result.expectedFailures)} '

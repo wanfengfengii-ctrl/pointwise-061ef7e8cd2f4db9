@@ -20,7 +20,7 @@ def delivery_id(subscription, kind, point):
 
 
 def item_position(item):
-    key = {'initial': 'baseline', 'change': 'seq', 'coverage': 'hi'}[item.kind]
+    key = {'initial': 'baseline', 'change': 'seq', 'coverage': 'hi', 'switch': 'cutover'}[item.kind]
     return item.payload[key]
 
 

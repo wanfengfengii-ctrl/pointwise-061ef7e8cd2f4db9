@@ -51,10 +51,11 @@ def _validate_initial(payload, baseline):
 
 
 def _validate_change(payload, baseline):
-    _require_fields(payload, 'baseline', 'seq', 'effect', 'revision')
+    _require_fields(payload, 'baseline', 'seq', 'effect', 'revision', 'regions')
     seq = require_sequence(payload['seq'])
     effect = payload['effect']
     revision = payload['revision']
+    _regions(payload['regions'])
     _require_fields(revision, 'seq', 'notice_id', 'action', 'before', 'after')
     if seq <= baseline or require_sequence(revision['seq']) != seq:
         raise ValueError('source sequence does not match change item')
@@ -92,6 +93,32 @@ def _validate_window(subscription, payload, baseline):
     return hi
 
 
+def _validate_switch(payload):
+    _require_fields(payload, 'baseline', 'cutover', 'switch_id', 'old_regions', 'new_regions',
+                    'leaves', 'enters')
+    baseline = require_sequence(payload['baseline'])
+    cutover = require_sequence(payload['cutover'])
+    require_name(payload['switch_id'])
+    old_regions = _regions(payload['old_regions'])
+    new_regions = _regions(payload['new_regions'])
+    if cutover < baseline:
+        raise ValueError('cutover precedes the subscription baseline')
+    for name, required, excluded in (('leaves', old_regions, new_regions),
+                                     ('enters', new_regions, old_regions)):
+        images = payload[name]
+        if type(images) is not list:
+            raise ValueError(f'{name} must be a list')
+        ids = []
+        for value in images:
+            image = _image(value, cutover)
+            if not regions_intersect(required, image.regions) or regions_intersect(excluded, image.regions):
+                raise ValueError(f'{name} image is outside its boundary side')
+            ids.append(image.notice_id)
+        if ids != sorted(set(ids)):
+            raise ValueError(f'{name} images must be unique and ordered')
+    return cutover
+
+
 def validate_issued_item(subscription, item):
     if not isinstance(item, IssuedItem) or item.subscription != subscription:
         raise DeliveryBindingError('item is bound to a different subscription')
@@ -105,6 +132,8 @@ def validate_issued_item(subscription, item):
             point = _validate_change(item.payload, baseline)
         elif item.kind == 'coverage':
             point = _validate_window(subscription, item.payload, baseline)
+        elif item.kind == 'switch':
+            point = _validate_switch(item.payload)
         else:
             raise ValueError('unknown issue kind')
         if item.item_id != delivery_id(subscription, item.kind, point):

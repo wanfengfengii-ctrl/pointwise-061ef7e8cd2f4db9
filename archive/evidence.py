@@ -37,6 +37,8 @@ def store_evidence(db, item, receipt, *, through=None):
             raise ValueError('published evidence must be inside the declared interval')
     elif item.kind == 'initial':
         position = through = item.payload['baseline']
+    elif item.kind == 'switch':
+        position = through = item.payload['cutover']
     elif item.kind == 'change':
         revision = NoticeRevision.from_dict(item.payload['revision'])
         position = through = revision_id = revision.seq

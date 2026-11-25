@@ -10,7 +10,7 @@
 python3 -B check_project.py
 ```
 
-直接运行同一套 unittest 和演示的命令如下。演示使用临时目录内的两份真实数据库，输出首批、欠件、归档历史、确认进度和断源复领结果。
+直接运行同一套 unittest 和演示的命令如下。演示使用临时目录内的两份真实数据库，输出首批、欠件、归档历史、确认进度和断源复领结果，并附上换订录制的待齐、边界补齐与重开读回结果。
 
 ```sh
 python3 -B -m unittest discover -s tests -t .
@@ -18,6 +18,8 @@ python3 -B -m station demo
 ```
 
 `data/registry.json` 来自模拟登记簿。`data/shift.json` 给出值班修订和投递顺序。东区首批在源序 3 包含 B 和 K。4 移出 B、5 移入 A、6 改文 K、7 登记未归区的 D。声明与第 6 件先到时仍缺 4、5。补齐后应公布退出、进入和更新各一次，跨过 7 时名册有 A、K 两件。随后 K 再改文、A 撤下，接班仍可读回目标 7 的两件核查单。
+
+`data/cutover.json` 是换订录制，每个用例各自从独立来源和档案开始。EW-5 在源序 5 受理换订，先投换订依据、新段声明和撤下件，再交旧段声明，最后补到第 4 位 B 改文；等待期间按换订号查到 C=5 和 `waiting`，原订阅仍公布到 3。EW-4 在已公布第 4 位 B 改文后受理，验证同一源序仍可补记边界的两行。两例最终名册都只剩 K。
 
 ## 公开 Python 接口
 
@@ -35,6 +37,7 @@ python3 -B -m station demo
 | 值班编辑 | `archive.history.query_archive(db, subscription)` | 一致视图中的基线、前沿、名册、历史和来源 |
 | 值班编辑 | `archive.history.read_published_history(db, subscription, through)` | 已公布前缀内的指定目标历史和裁剪后的来源 |
 | 值班编辑 | `review.reports.request_report(db, report_id, subscription, target)` 与 `review.reopen.reopen_report(db, report_id)` | 返回 `waiting` 待齐或 `complete` 冻结核查单 |
+| 值班编辑 | `station.request_switch(source, subscription, switch_id, regions)` 与 `station.query_switch(receiver, switch_id)` | 受理换订返回 `(C, boundary_items)`；本地可按换订号查 `waiting` 或 `active` |
 
 `station.receive_and_publish` 将实收和归档依次执行。若第二步失败，已提交的来件仍可用，重试归档或重投原件即可。正式确认使用事务外的接收连接。`receive.coverage.read_coverage` 可查询收齐前缀、欠件和未覆盖区间。`receive.receipts.find_received_item` 可按归档引用中的发行号找到本地原件与首执。低层持久化函数由上述业务入口在各自事务中使用。
 
@@ -45,3 +48,4 @@ python3 -B -m station demo
 - 来件来自本站固定录制或受信任的发行进程。接收检查规范格式、订阅绑定、已知覆盖与原文重投。内容摘要绑定一次实收与原发行件。错绑或异文分别报 `DeliveryBindingError` 或 `DeliveryConflict`。接收提交失败时无可核对的正式首执。确认以接收库已提交记录和原发行记录为准。
 - 档案只公布连续齐备前缀，范围内变更、名册、证据和前沿同时提交。空范围与无关区间也可推进。未知订阅报 `UnknownArchiveSubscription`，已收其他件但未建首批则返回 `awaiting_initial`。当前名册可在第一份首批之前为空。
 - 核查按基线件数加累计进入、减累计退出，更新单计。只计目标内历史，目标等于基线时所有变更数为零。早于基线的目标拒绝。核查号在待齐阶段即绑定订阅与目标，异参报 `ReportConflict`，未知号报 `UnknownReport`。签出冻结的计数与依据在后续发布及重开后保持原值。
+- 换订在来源受理时的最新源序 C 处固定，受理本身不占源序。换订依据是一项正式发行件，同号同参复领返回原 C 与原依据，同号异参或同一订阅换号均报 `ValueError`。C 及以前的变更按旧范围投影，C 之后的变更按新范围投影；区间跨过 C 时可按序一次领取两侧的声明与变更。边界公布时，仅属旧区的公告退出、仅属新区的公告进入，两区共有的公告延续且不产生边界行。普通变更行先于同序边界行，边界行按公告号排序。边界行携带正式依据的 `item_id` 与 `receipt_id`，可由 `receive.receipts.find_received_item` 在本地读回。新段的变更与声明可在旧段欠件时先实收，但须等边界公布后才进入原订阅的可见账。
