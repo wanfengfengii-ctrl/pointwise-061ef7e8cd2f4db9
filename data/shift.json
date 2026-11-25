@@ -1,0 +1,14 @@
+{
+  "target": 7,
+  "changes": [
+    {"notice_id":"B","action":"move","regions":["西区"]},
+    {"notice_id":"A","action":"move","regions":["东区"]},
+    {"notice_id":"K","action":"edit","body":"跨区桥面维修公告，延长答疑"},
+    {"notice_id":"D","action":"create","body":"待分辖区登记","regions":[]}
+  ],
+  "delivery_order": ["coverage", 6, 5, 4],
+  "later": [
+    {"notice_id":"K","action":"edit","body":"跨区桥面维修公告，发布答疑"},
+    {"notice_id":"A","action":"withdraw"}
+  ]
+}

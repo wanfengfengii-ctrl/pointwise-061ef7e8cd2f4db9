@@ -1,0 +1,40 @@
+{
+  "subscription": "E",
+  "old_regions": ["东区"],
+  "new_regions": ["西区"],
+  "cases": [
+    {
+      "switch_id": "EW-5",
+      "publish_before_request": false,
+      "before": [
+        {"notice_id": "B", "action": "edit", "body": "东岸复核"},
+        {"notice_id": "D", "action": "create", "body": "待分辖区", "regions": []}
+      ],
+      "cutover": 5,
+      "after": [
+        {"notice_id": "A", "action": "withdraw"},
+        {"notice_id": "B", "action": "edit", "body": "换订后的东岸答疑"}
+      ],
+      "expected": {
+        "frontier": 7,
+        "members": ["K"],
+        "changes": [[4, "B", "update", "revision"], [5, "B", "leave", "switch"], [5, "A", "enter", "switch"], [6, "A", "leave", "revision"]]
+      }
+    },
+    {
+      "switch_id": "EW-4",
+      "publish_before_request": true,
+      "before": [{"notice_id": "B", "action": "edit", "body": "截点更正"}],
+      "cutover": 4,
+      "after": [
+        {"notice_id": "A", "action": "withdraw"},
+        {"notice_id": "B", "action": "edit", "body": "换订后的东岸答疑"}
+      ],
+      "expected": {
+        "frontier": 6,
+        "members": ["K"],
+        "changes": [[4, "B", "update", "revision"], [4, "B", "leave", "switch"], [4, "A", "enter", "switch"], [5, "A", "leave", "revision"]]
+      }
+    }
+  ]
+}
